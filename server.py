@@ -101,7 +101,7 @@ def generate_image(prompt: str) -> list[Image | str]:
         output_images.append(Image(data=buffered.getvalue(), format="png"))
 
     # Return list of images and a short message
-    return output_images + ["Images for prompt: " + prompt]
+    return output_images + [f"Generated {num_outputs} image(s) for prompt: {prompt}"]
 
 if __name__ == "__main__":
     # Run with HTTP transport (Modern "Streamable")
