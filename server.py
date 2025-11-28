@@ -55,13 +55,7 @@ env_seed = os.getenv("DEFAULT_SEED")
 DEFAULT_SEED = int(env_seed) if env_seed else None
 
 @mcp.tool()
-def generate_image(
-    prompt: str, 
-    height: int = DEFAULT_HEIGHT, 
-    width: int = DEFAULT_WIDTH, 
-    steps: int = DEFAULT_STEPS, 
-    seed: int = DEFAULT_SEED
-) -> ImageContent:
+def generate_image(prompt: str) -> ImageContent:
     """
     Generate an image based on a text prompt using Z-Image-Turbo.
     
@@ -74,7 +68,7 @@ def generate_image(
     """
     load_model()
     
-    if seed is None:
+    if DEFAULT_SEED is None:
         seed = torch.randint(0, 2**32 - 1, (1,)).item()
     
     print(f"Generating image for prompt: {prompt} with seed: {seed}")
@@ -83,9 +77,9 @@ def generate_image(
     with gpu_lock:
         image = pipe(
             prompt=prompt,
-            height=height,
-            width=width,
-            num_inference_steps=steps,
+            height=DEFAULT_HEIGHT,
+            width=DEFAULT_WIDTH,
+            num_inference_steps=DEFAULT_STEPS,
             guidance_scale=0.0,
             generator=torch.Generator("cuda").manual_seed(seed),
         ).images[0]
