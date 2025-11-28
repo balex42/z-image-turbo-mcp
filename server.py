@@ -79,7 +79,7 @@ def generate_image(prompt: str) -> list[Image | str]:
     seeds = [base_seed + i for i in range(num_outputs)]
     generators = [torch.Generator("cuda").manual_seed(s) for s in seeds]
 
-    print(f"Generating {num_outputs} images for prompt: {prompt} with base seed: {base_seed}")
+    print(f"Generating {num_outputs} image(s) for prompt: {prompt} with base seed: {base_seed}")
 
     # Use lock to ensure only one generation happens at a time
     with gpu_lock:
