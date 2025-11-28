@@ -92,7 +92,8 @@ def generate_image(prompt: str) -> ImageContent:
     return ImageContent(
         type="image",
         data=img_str,
-        mimeType="image/png"
+        mimeType="image/png",
+        metadata={"seed": seed, "height": DEFAULT_HEIGHT, "width": DEFAULT_WIDTH, "prompt": prompt, "steps": DEFAULT_STEPS}
     )
 
 if __name__ == "__main__":
