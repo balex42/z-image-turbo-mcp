@@ -2,7 +2,6 @@ from fastmcp import FastMCP
 from fastmcp.utilities.types import Image
 import torch
 from diffusers import ZImagePipeline
-import base64
 import io
 import os
 import threading
@@ -55,7 +54,7 @@ env_seed = os.getenv("DEFAULT_SEED")
 DEFAULT_SEED = int(env_seed) if env_seed else None
 
 @mcp.tool()
-def generate_image(prompt: str) -> list[Image, str]:
+def generate_image(prompt: str) -> list[Image | str]:
     """Generate an image from a rich natural‑language prompt using Z-Image-Turbo.
 
     This tool works best when the calling LLM provides a **detailed** prompt,
@@ -76,28 +75,41 @@ def generate_image(prompt: str) -> list[Image, str]:
                 environment, and other key visual details.
     """
     load_model()
-    
+
+    # Determine base seed (allow reproducible outputs when DEFAULT_SEED is set)
     if DEFAULT_SEED is None:
-        seed = torch.randint(0, 2**32 - 1, (1,)).item()
-    
-    print(f"Generating image for prompt: {prompt} with seed: {seed}")
-    
+        base_seed = torch.randint(0, 2**32 - 1, (1,)).item()
+    else:
+        base_seed = int(DEFAULT_SEED)
+
+    print(f"Generating 4 images for prompt: {prompt} with base seed: {base_seed}")
+
+    # Prepare per-image generators so each image is different but reproducible
+    num_outputs = 4
+    seeds = [base_seed + i for i in range(num_outputs)]
+    generators = [torch.Generator("cuda").manual_seed(s) for s in seeds]
+
     # Use lock to ensure only one generation happens at a time
     with gpu_lock:
-        image = pipe(
+        images = pipe(
             prompt=prompt,
             height=DEFAULT_HEIGHT,
             width=DEFAULT_WIDTH,
             num_inference_steps=DEFAULT_STEPS,
             guidance_scale=0.0,
-            generator=torch.Generator("cuda").manual_seed(seed),
-        ).images[0]
-    
-    # Convert to base64
-    buffered = io.BytesIO()
-    image.save(buffered, format="PNG")
-    
-    return [Image(data=buffered.getvalue(), format="png"), "Image for prompt: " + prompt]
+            num_images_per_prompt=num_outputs,
+            generator=generators,
+        ).images
+
+    # Convert each PIL image to raw PNG bytes and wrap in the Image type
+    output_images = []
+    for img in images:
+        buffered = io.BytesIO()
+        img.save(buffered, format="PNG")
+        output_images.append(Image(data=buffered.getvalue(), format="png"))
+
+    # Return list of images and a short message
+    return output_images + ["Images for prompt: " + prompt]
 
 if __name__ == "__main__":
     # Run with HTTP transport (Modern "Streamable")
