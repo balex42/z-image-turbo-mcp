@@ -1,4 +1,4 @@
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 from mcp.types import ImageContent
 import torch
 from diffusers import ZImagePipeline
@@ -102,8 +102,5 @@ def generate_image(
     )
 
 if __name__ == "__main__":
-    import uvicorn
-    # Run with SSE transport for HTTP support
-    # Listen on 0.0.0.0 to be accessible from outside the container
-    # mcp.run(transport="sse") doesn't support host/port arguments
-    uvicorn.run(mcp.sse_app(), host="0.0.0.0", port=8000)
+    # Run with HTTP transport (Modern "Streamable")
+    mcp.run(transport="http", host="0.0.0.0", port=8000)
