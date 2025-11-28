@@ -43,6 +43,7 @@ DEFAULT_WIDTH = int(os.getenv("DEFAULT_WIDTH", "1024"))
 DEFAULT_STEPS = int(os.getenv("DEFAULT_STEPS", "9"))
 env_seed = os.getenv("DEFAULT_SEED")
 DEFAULT_SEED = int(env_seed) if env_seed else None
+DEFAULT_NUM_IMAGES = int(os.getenv("DEFAULT_NUM_IMAGES", "4"))
 
 @mcp.tool()
 def generate_image(prompt: str) -> list[Image | str]:
@@ -73,12 +74,12 @@ def generate_image(prompt: str) -> list[Image | str]:
     else:
         base_seed = int(DEFAULT_SEED)
 
-    print(f"Generating 4 images for prompt: {prompt} with base seed: {base_seed}")
-
     # Prepare per-image generators so each image is different but reproducible
-    num_outputs = 4
+    num_outputs = DEFAULT_NUM_IMAGES
     seeds = [base_seed + i for i in range(num_outputs)]
     generators = [torch.Generator("cuda").manual_seed(s) for s in seeds]
+
+    print(f"Generating {num_outputs} images for prompt: {prompt} with base seed: {base_seed}")
 
     # Use lock to ensure only one generation happens at a time
     with gpu_lock:

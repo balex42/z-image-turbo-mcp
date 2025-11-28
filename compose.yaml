@@ -12,5 +12,6 @@ services:
               capabilities: [gpu]
     environment:
       - ENABLE_CPU_OFFLOAD=true
+      - DEFAULT_NUM_IMAGES=4  # or any other number
     volumes:
       - ${HOME}/.cache/huggingface:/root/.cache/huggingface:rw
