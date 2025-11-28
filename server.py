@@ -55,7 +55,7 @@ env_seed = os.getenv("DEFAULT_SEED")
 DEFAULT_SEED = int(env_seed) if env_seed else None
 
 @mcp.tool()
-def generate_image(prompt: str) -> Image:
+def generate_image(prompt: str) -> list[Image, str]:
     """Generate an image from a rich natural‑language prompt using Z-Image-Turbo.
 
     This tool works best when the calling LLM provides a **detailed** prompt,
@@ -97,7 +97,7 @@ def generate_image(prompt: str) -> Image:
     buffered = io.BytesIO()
     image.save(buffered, format="PNG")
     
-    return Image(data=buffered.getvalue(), format="png")
+    return [Image(data=buffered.getvalue(), format="png"), "Image for prompt: " + prompt]
 
 if __name__ == "__main__":
     # Run with HTTP transport (Modern "Streamable")
