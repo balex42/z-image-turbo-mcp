@@ -19,19 +19,10 @@ def load_model():
         return
 
     print("Loading Z-Image-Turbo model...")
-    dtype_str = os.getenv("TORCH_DTYPE", "bfloat16")
-    
-    # Handle dtype selection
-    if dtype_str == "float16":
-        dtype = torch.float16
-    else:
-        dtype = torch.bfloat16
-        
-    print(f"Using dtype: {dtype}")
 
     pipe = ZImagePipeline.from_pretrained(
         "Tongyi-MAI/Z-Image-Turbo",
-        torch_dtype=dtype,
+        torch_dtype=torch.bfloat16,
         low_cpu_mem_usage=True,
     )
     

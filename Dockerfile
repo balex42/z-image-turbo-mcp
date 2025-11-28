@@ -28,7 +28,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY server.py .
 
 # Default env vars (you can override them at runtime)
-ENV TORCH_DTYPE=bfloat16
 ENV ENABLE_CPU_OFFLOAD=true
 
 EXPOSE 8000
