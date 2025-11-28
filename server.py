@@ -1,5 +1,5 @@
 from fastmcp import FastMCP
-from mcp.types import ImageContent
+from fastmcp.utilities.types import Image
 import torch
 from diffusers import ZImagePipeline
 import base64
@@ -55,7 +55,7 @@ env_seed = os.getenv("DEFAULT_SEED")
 DEFAULT_SEED = int(env_seed) if env_seed else None
 
 @mcp.tool()
-def generate_image(prompt: str) -> ImageContent:
+def generate_image(prompt: str) -> Image:
     """Generate an image from a rich natural‑language prompt using Z-Image-Turbo.
 
     This tool works best when the calling LLM provides a **detailed** prompt,
@@ -96,14 +96,8 @@ def generate_image(prompt: str) -> ImageContent:
     # Convert to base64
     buffered = io.BytesIO()
     image.save(buffered, format="PNG")
-    img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
     
-    return ImageContent(
-        type="image",
-        data=img_str,
-        mimeType="image/png",
-        metadata={"seed": seed, "height": DEFAULT_HEIGHT, "width": DEFAULT_WIDTH, "prompt": prompt, "steps": DEFAULT_STEPS}
-    )
+    return Image(data=buffered.getvalue(), format="png")
 
 if __name__ == "__main__":
     # Run with HTTP transport (Modern "Streamable")
