@@ -1,0 +1,7 @@
+mcp
+git+https://github.com/huggingface/diffusers
+transformers
+accelerate
+protobuf
+sentencepiece
+uvicorn

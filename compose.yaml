@@ -1,0 +1,17 @@
+services:
+  z-image-mcp:
+    build: .
+    ports:
+      - "8000:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      - TORCH_DTYPE=bfloat16  # Change to float16 for RTX 6000
+      - ENABLE_CPU_OFFLOAD=true
+    volumes:
+      - ${HOME}/.cache/huggingface:/root/.cache/huggingface:rw
