@@ -56,15 +56,24 @@ DEFAULT_SEED = int(env_seed) if env_seed else None
 
 @mcp.tool()
 def generate_image(prompt: str) -> ImageContent:
-    """
-    Generate an image based on a text prompt using Z-Image-Turbo.
-    
+    """Generate an image from a rich natural‑language prompt using Z-Image-Turbo.
+
+    This tool works best when the calling LLM provides a **detailed** prompt,
+    not just a single word. The prompt should describe, in one or more
+    sentences, things like:
+
+    - main subject(s) and what they are doing
+    - environment / background (indoor, outdoor, landscape, city, etc.)
+    - style (photo, illustration, 3D render, pixel art, anime, watercolor, etc.)
+    - composition and camera details (close‑up, full‑body, wide shot, angle)
+    - lighting and mood (soft light, dramatic, neon, sunny, cozy, etc.)
+    - any important colors, level of realism, or extra details to emphasize
+
+    The more specific and concrete the prompt, the better the results.
+
     Args:
-        prompt: The text description of the image to generate.
-        height: Height of the image (default from env DEFAULT_HEIGHT or 1024).
-        width: Width of the image (default from env DEFAULT_WIDTH or 1024).
-        steps: Number of inference steps (default from env DEFAULT_STEPS or 9).
-        seed: Optional seed for reproducibility. Default from env DEFAULT_SEED or random.
+        prompt: A rich, descriptive text prompt containing subject, style,
+                environment, and other key visual details.
     """
     load_model()
     
