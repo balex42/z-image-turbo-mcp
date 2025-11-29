@@ -33,8 +33,6 @@ def load_model():
     else:
         pipe.to("cuda")
 
-    pipe.vae.enable_slicing()
-    pipe.vae.enable_tiling()
     print("Model loaded successfully.")
 
 # Default configuration from environment variables
