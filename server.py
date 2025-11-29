@@ -41,7 +41,7 @@ DEFAULT_WIDTH = int(os.getenv("DEFAULT_WIDTH", "1024"))
 DEFAULT_STEPS = int(os.getenv("DEFAULT_STEPS", "9"))
 env_seed = os.getenv("DEFAULT_SEED")
 DEFAULT_SEED = int(env_seed) if env_seed else None
-DEFAULT_NUM_IMAGES = int(os.getenv("DEFAULT_NUM_IMAGES", "4"))
+DEFAULT_NUM_IMAGES = int(os.getenv("DEFAULT_NUM_IMAGES", "1"))
 
 @mcp.tool()
 def generate_image(prompt: str) -> list[Image | str]:
