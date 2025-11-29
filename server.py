@@ -41,7 +41,7 @@ class ZImageEngine:
 
         await ctx.info("Model loaded successfully.")
 
-    def run_inference(self, prompt, num_outputs, generator, callback, start_callback=None):
+    def run_inference(self, prompt, generator, callback, start_callback=None):
         with self.lock:
             if start_callback:
                 start_callback()
@@ -51,32 +51,34 @@ class ZImageEngine:
                 width=Config.WIDTH,
                 num_inference_steps=Config.STEPS,
                 guidance_scale=0.0,
-                num_images_per_prompt=num_outputs,
+                num_images_per_prompt=1,
                 generator=generator,
                 callback_on_step_end=callback
-            ).images
+            ).images[0]
 
 engine = ZImageEngine()
 
 @mcp.tool()
 async def generate_image(prompt: str, ctx: Context) -> list[Image | str]:
-    """Generate an image from a rich natural‑language prompt using Z-Image-Turbo.
+    """Generate an image from a rich natural-language prompt using Z-Image-Turbo.
 
-    This tool works best when the calling LLM provides a **detailed** prompt,
+    Language: Prompts must be provided in English.
+
+    This tool works best when the calling LLM provides a detailed prompt,
     not just a single word. The prompt should describe, in one or more
     sentences, things like:
 
     - main subject(s) and what they are doing
     - environment / background (indoor, outdoor, landscape, city, etc.)
     - style (photo, illustration, 3D render, pixel art, anime, watercolor, etc.)
-    - composition and camera details (close‑up, full‑body, wide shot, angle)
+    - composition and camera details (close-up, full-body, wide shot, angle)
     - lighting and mood (soft light, dramatic, neon, sunny, cozy, etc.)
     - any important colors, level of realism, or extra details to emphasize
 
     The more specific and concrete the prompt, the better the results.
 
     Args:
-        prompt: A rich, descriptive text prompt containing subject, style,
+        prompt: A rich, descriptive text prompt (in English) containing subject, style,
                 environment, and other key visual details.
     """
     await engine.load_model(ctx)
@@ -87,9 +89,7 @@ async def generate_image(prompt: str, ctx: Context) -> list[Image | str]:
     else:
         seed = int(Config.SEED)
 
-    # Prepare per-image generators so each image is different but reproducible
-    num_outputs = 1
-    
+    # Prepare random generator
     generator = torch.Generator("cuda").manual_seed(seed)
 
     # Use lock to ensure only one generation happens at a time
@@ -113,24 +113,20 @@ async def generate_image(prompt: str, ctx: Context) -> list[Image | str]:
         asyncio.run_coroutine_threadsafe(ctx.info(f"Starting image generation..."), loop)
         asyncio.run_coroutine_threadsafe(ctx.report_progress(progress=0, total=Config.STEPS), loop)
     
-    images = await asyncio.to_thread(
+    image = await asyncio.to_thread(
         engine.run_inference, 
         prompt, 
-        num_outputs, 
         generator, 
         callback,
         start_callback
     )
 
-    # Convert each PIL image to raw PNG bytes and wrap in the Image type
-    output_images = []
-    for img in images:
-        buffered = io.BytesIO()
-        img.save(buffered, format="PNG")
-        output_images.append(Image(data=buffered.getvalue(), format="png"))
+    # Convert PIL image to bytes
+    buffered = io.BytesIO()
+    image.save(buffered, format="PNG")
 
-    # Return list of images and a short message
-    return output_images + [f"Generated {num_outputs} image(s) for prompt: {prompt}"]
+    # Return image and success message
+    return [Image(data=buffered.getvalue(), format="png"), f"Successfully generated image for prompt: {prompt}"]
 
 if __name__ == "__main__":
     # Run with HTTP transport (Modern "Streamable")
