@@ -10,54 +10,53 @@ import asyncio
 # Initialize FastMCP
 mcp = FastMCP("z-image-server")
 
-# Global pipeline variable
-pipe = None
-gpu_lock = threading.Lock()
+class Config:
+    HEIGHT = int(os.getenv("DEFAULT_HEIGHT", "1024"))
+    WIDTH = int(os.getenv("DEFAULT_WIDTH", "1024"))
+    STEPS = int(os.getenv("DEFAULT_STEPS", "9"))
+    SEED = int(os.getenv("DEFAULT_SEED")) if os.getenv("DEFAULT_SEED") else None
+    ENABLE_CPU_OFFLOAD = os.getenv("ENABLE_CPU_OFFLOAD", "true").lower() == "true"
 
-async def load_model(ctx: Context):
-    global pipe
-    if pipe is not None:
-        return
+class ZImageEngine:
+    def __init__(self):
+        self.pipe = None
+        self.lock = threading.Lock()
 
-    print("Loading Z-Image-Turbo model...")
-    await ctx.info("Loading Z-Image-Turbo model...")
+    async def load_model(self, ctx: Context):
+        if self.pipe is not None:
+            return
 
-    pipe = ZImagePipeline.from_pretrained(
-        "Tongyi-MAI/Z-Image-Turbo",
-        torch_dtype=torch.bfloat16,
-        low_cpu_mem_usage=True,
-    )
-    
-    # Memory optimizations
-    # Use environment variable to control offloading if needed, default to True
-    if os.getenv("ENABLE_CPU_OFFLOAD", "true").lower() == "true":
-        pipe.enable_model_cpu_offload()
-    else:
-        pipe.to("cuda")
+        await ctx.info("Loading Z-Image-Turbo model...")
 
-    print("Model loaded successfully.")
-    await ctx.info("Model loaded successfully.")
+        self.pipe = ZImagePipeline.from_pretrained(
+            "Tongyi-MAI/Z-Image-Turbo",
+            torch_dtype=torch.bfloat16,
+            low_cpu_mem_usage=True,
+        )
+        
+        if Config.ENABLE_CPU_OFFLOAD:
+            self.pipe.enable_model_cpu_offload()
+        else:
+            self.pipe.to("cuda")
 
-# Default configuration from environment variables
-DEFAULT_HEIGHT = int(os.getenv("DEFAULT_HEIGHT", "1024"))
-DEFAULT_WIDTH = int(os.getenv("DEFAULT_WIDTH", "1024"))
-DEFAULT_STEPS = int(os.getenv("DEFAULT_STEPS", "9"))
-env_seed = os.getenv("DEFAULT_SEED")
-DEFAULT_SEED = int(env_seed) if env_seed else None
-DEFAULT_NUM_IMAGES = int(os.getenv("DEFAULT_NUM_IMAGES", "1"))
+        await ctx.info("Model loaded successfully.")
 
-def run_inference(prompt, num_outputs, generators, callback):
-    with gpu_lock:
-        return pipe(
-            prompt=prompt,
-            height=DEFAULT_HEIGHT,
-            width=DEFAULT_WIDTH,
-            num_inference_steps=DEFAULT_STEPS,
-            guidance_scale=0.0,
-            num_images_per_prompt=num_outputs,
-            generator=generators,
-            callback_on_step_end=callback
-        ).images
+    def run_inference(self, prompt, num_outputs, generator, callback, start_callback=None):
+        with self.lock:
+            if start_callback:
+                start_callback()
+            return self.pipe(
+                prompt=prompt,
+                height=Config.HEIGHT,
+                width=Config.WIDTH,
+                num_inference_steps=Config.STEPS,
+                guidance_scale=0.0,
+                num_images_per_prompt=num_outputs,
+                generator=generator,
+                callback_on_step_end=callback
+            ).images
+
+engine = ZImageEngine()
 
 @mcp.tool()
 async def generate_image(prompt: str, ctx: Context) -> list[Image | str]:
@@ -80,41 +79,47 @@ async def generate_image(prompt: str, ctx: Context) -> list[Image | str]:
         prompt: A rich, descriptive text prompt containing subject, style,
                 environment, and other key visual details.
     """
-    await load_model(ctx)
+    await engine.load_model(ctx)
 
-    # Determine base seed (allow reproducible outputs when DEFAULT_SEED is set)
-    if DEFAULT_SEED is None:
-        base_seed = torch.randint(0, 2**32 - 1, (1,)).item()
+    # Determine base seed (allow reproducible outputs when Config.SEED is set)
+    if Config.SEED is None:
+        seed = torch.randint(0, 2**32 - 1, (1,)).item()
     else:
-        base_seed = int(DEFAULT_SEED)
+        seed = int(Config.SEED)
 
     # Prepare per-image generators so each image is different but reproducible
-    num_outputs = DEFAULT_NUM_IMAGES
-    seeds = [base_seed + i for i in range(num_outputs)]
-    generators = [torch.Generator("cuda").manual_seed(s) for s in seeds]
+    num_outputs = 1
+    
+    generator = torch.Generator("cuda").manual_seed(seed)
 
-    print(f"Generating {num_outputs} image(s) for prompt: {prompt} with base seed: {base_seed}")
     # Use lock to ensure only one generation happens at a time
     await ctx.info(f"Waiting for GPU lock to generate image...")
     
     loop = asyncio.get_running_loop()
     
     def callback(pipe, step_index, timestep, callback_kwargs):
+        step = step_index + 1
         asyncio.run_coroutine_threadsafe(
-            ctx.report_progress(progress=step_index + 1, total=DEFAULT_STEPS),
+            ctx.report_progress(progress=step, total=Config.STEPS),
+            loop
+        )
+        asyncio.run_coroutine_threadsafe(
+            ctx.info(f"Generating image: step {step}/{Config.STEPS}"),
             loop
         )
         return callback_kwargs
 
-    await ctx.info(f"Generating image")
-    await ctx.report_progress(progress=0, total=DEFAULT_STEPS)
+    def start_callback():
+        asyncio.run_coroutine_threadsafe(ctx.info(f"Starting image generation..."), loop)
+        asyncio.run_coroutine_threadsafe(ctx.report_progress(progress=0, total=Config.STEPS), loop)
     
     images = await asyncio.to_thread(
-        run_inference, 
+        engine.run_inference, 
         prompt, 
         num_outputs, 
-        generators, 
-        callback
+        generator, 
+        callback,
+        start_callback
     )
 
     # Convert each PIL image to raw PNG bytes and wrap in the Image type
