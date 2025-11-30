@@ -95,6 +95,7 @@ async def generate_image(prompt: str, ctx: Context) -> list[Image | str]:
     - composition and camera details (close-up, full-body, wide shot, angle)
     - lighting and mood (soft light, dramatic, neon, sunny, cozy, etc.)
     - any important colors, level of realism, or extra details to emphasize
+    - enclose all wanted text content within the image in double quotes (" ")
 
     The more specific and concrete the prompt, the better the results.
 
