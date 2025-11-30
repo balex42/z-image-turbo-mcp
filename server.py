@@ -16,6 +16,7 @@ class Config:
     STEPS = int(os.getenv("DEFAULT_STEPS", "9"))
     SEED = int(os.getenv("DEFAULT_SEED")) if os.getenv("DEFAULT_SEED") else None
     ENABLE_CPU_OFFLOAD = os.getenv("ENABLE_CPU_OFFLOAD", "true").lower() == "true"
+    ENABLE_TORCH_COMPILE = os.getenv("ENABLE_TORCH_COMPILE", "false").lower() == "false" and False or os.getenv("ENABLE_TORCH_COMPILE", "false").lower() == "true"
 
 class ZImageEngine:
     def __init__(self):
@@ -38,6 +39,26 @@ class ZImageEngine:
             self.pipe.enable_model_cpu_offload()
         else:
             self.pipe.to("cuda")
+
+        # Optionally compile the transformer's forward with torch.compile
+        # Only do this when running on CUDA and not using CPU offload.
+        if not Config.ENABLE_CPU_OFFLOAD and Config.ENABLE_TORCH_COMPILE:
+            try:
+                if not torch.cuda.is_available():
+                    await ctx.info("Skipping torch.compile: CUDA not available.")
+                elif not hasattr(torch, "compile"):
+                    await ctx.info("Skipping torch.compile: torch.compile not available (requires PyTorch >= 2.0).")
+                else:
+                    await ctx.info("Compiling transformer with torch.compile (backend=inductor, mode=reduce-overhead)...")
+                    # Compile the transformer block; this is typically the DiT/Transformer in Z-Image
+                    self.pipe.transformer = torch.compile(
+                        self.pipe.transformer,
+                        backend="inductor",
+                        mode="reduce-overhead",
+                    )
+                    await ctx.info("torch.compile applied successfully.")
+            except Exception as e:
+                await ctx.info(f"torch.compile failed; continuing without compile. Error: {e}")
 
         await ctx.info("Model loaded successfully.")
 
